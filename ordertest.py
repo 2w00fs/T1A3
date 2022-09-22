@@ -1,9 +1,10 @@
 import time
 import json
+import getprices
 import exchangerates
 from orderclass import Order
 import mytestdata
-
+#import basebtcdata
 orders = {}
 
 def utc(ca):
@@ -30,19 +31,36 @@ def loopitems(item):
         name = item['currency']
         size = item['amount']
         side = item['direction']
-        date = utc(int(item['createdAt']))
+        date = int(item['createdAt'])
+        dateutc = utc(date)
         orderid = context.get("orderId")
-
+        
         asset, baseasset, assetsize, baseassetsize, direction = basset(symbol,name,size,side)
 
         if orderid in orders:
             orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
+            if baseasset != None and orders[orderid].value['basevalue'] == 0:
+                orders[orderid].add(basevalue= getprices.feed_me(baseasset, date))
         else:
-            orders[orderid] =  Order(orderid, date, item['accountType'], symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize)
+            orders[orderid] =  Order(orderid, dateutc, item['accountType'], symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize)
+            if baseasset != None:
+                orders[orderid].add(basevalue= getprices.feed_me(baseasset, date))
 
 for index in mytestdata.data:
     loopitems(index)
 
 for i in orders.values():
     print(i.value)
-        
+
+getprices.store_prices()
+
+"""
+            if orders[orderid].get(basevalue) == 0:
+                if name != 'USDT':
+                    basevalue = getprices.feedme(name,date)
+                else:
+                    basevalue = 1
+            else:
+                    basevalue = 0
+
+"""
