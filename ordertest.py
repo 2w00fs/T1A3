@@ -15,31 +15,33 @@ def utc(ca):
     return utc
 
 def basset(symbol,name,sizeside,date):
+    fname = name + "-"
+    print(fname)
     if (name + "-") in symbol: # if true the asset is main asset being traded        
         direction = "in" if sizeside > 0 else "out"
         #return asset, baseasset, assetsize, baseassetsize, direction
+        print(f"Symbol: {symbol}, Asset: {name}")
+        time.sleep(0.25)
         return (name,None,sizeside,0,direction,0)
     else: # if condition above is false the asset is the baseasset used to pay for the trade
         direction = "out" if sizeside > 0 else "in"
-        basevalue = getprices.feed_me(name, date)
+        #basevalue = getprices.feed_me(name, date)
+        basevalue = 0
+        print(f"Symbol: {symbol}, Base Asset: {name}")
+        time.sleep(0.25)
         return (None,name,0,sizeside,direction,basevalue)
 
 def loop_items(item):
     if item['bizType'] == 'Cross Margin' or item['bizType'] == 'Exchange':
-        context = json.loads(item["context"])
-        symbol = context.get('symbol')
-        name = item['currency']
-        size = item['amount']
-        side = item['direction']
-        sizeside = float(size) if side == "in" else float(size) * -1
-        date = int(item['createdAt'])
-        dateutc = utc(date)
-        orderid = context.get("orderId")
-        return (context, symbol, name, size, side, sizeside, date, dateutc, orderid)
+        id, currency, amount, fee, accountType, bizType, direction, createdAt, context = item.values()
+        sizeside = float(amount) if direction == "in" else float(amount) * -1
+        dateutc = utc(int(createdAt))
+        symbol, orderid = json.loads(context).values()
+        return (symbol, currency, float(amount), direction, sizeside, int(createdAt), dateutc, orderid)
         
 def parse_orders():
     for item in mytestdata.data:
-        context, symbol, name, size, side, sizeside, date, dateutc, orderid = loop_items(item)
+        symbol, name, size, side, sizeside, date, dateutc, orderid = loop_items(item)
         asset, baseasset, assetsize, baseassetsize, direction, basevalue = basset(symbol,name,sizeside, date)
 
         if orderid in orders:
@@ -53,4 +55,21 @@ parse_orders()
 for i in orders.values():
     print(i.value)
 
-#getprices.store_prices()
+getprices.store_prices()
+
+"""
+
+context, symbol, name, size, side, date, orderid = item
+
+        context = json.loads(item["context"])
+        symbol = context.get('symbol')
+        name = item['currency']
+        size = item['amount']
+        side = item['direction']
+        sizeside = float(size) if side == "in" else float(size) * -1
+        date = int(item['createdAt'])
+        dateutc = utc(date)
+        orderid = context.get("orderId")
+
+id, currency, amount, fee, accountType, bizType, direction, createdAt, context
+"""
