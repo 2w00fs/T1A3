@@ -2,22 +2,38 @@ import time
 import json
 import credentials
 from kucoin.client import Market
-#from testpriceslist2 import prices
-import fetchedprices
-import testprices
 
-prices = {}
+json_file_name = "sample_test"
 
-f = open('sample.json', 'r')
-ff = f.read(1)
-if not ff:
-    print("empty")
-else:
-    f.close()
-    f = open('sample.json', 'r')
-    prices = json.load(f)
-client = Market(credentials.api_key, credentials.api_secret, credentials.api_passphrase,\
-    is_sandbox=False, url='https://api.kucoin.com')
+def check_json_notempty(fname):
+    try:
+        jfile = open(f"{fname}.json", 'r')
+    except:
+        jfile = open(f"{fname}.json", 'w')
+        jfile.close()
+        return {}
+    else:
+        read_start = jfile.read(1)
+        if not read_start:
+            print("empty")
+            jfile.close()
+            return {}
+        else:
+            jfile.close()
+            file = open('sample.json', 'r')
+            contents = json.load(file)
+            file.close()
+            return contents
+
+prices = check_json_notempty(json_file_name)
+
+client = Market(
+    credentials.api_key,
+    credentials.api_secret,
+    credentials.api_passphrase,
+    is_sandbox=False,
+    url='https://api.kucoin.com'
+    )
 
 """
 The ticker data date goes up in increments of 60
@@ -36,7 +52,7 @@ def sixty(n):
         return final
 
 def store_prices():
-    with open("sample.json", "w") as outfile:
+    with open(f"{json_file_name}.json", "w") as outfile:
         json.dump(prices, outfile)
 
 def parse_prices(api_data, start, name):
@@ -44,7 +60,7 @@ def parse_prices(api_data, start, name):
         try:
             ohlc = round((float(i[1]) + float(i[2]) + float(i[3]) + float(i[4])) / 4,4)
         except:
-            print(i)
+            print(F"PARSE_PRICES FAILED: {i}")
         else:
             date = int(i[0])
             prices[name][str(date)] = ohlc # adds fetched values to stored data
@@ -62,17 +78,21 @@ def get_data(symbol,start,end,name):
         data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
         return parse_prices(data, start, name)
     else:
+        time.sleep(1)
         return parse_prices(api_data, start, name)
 
 def find_price(name,date):
     symbol = name + "-USDT"
-    print(date)
-    if str(date) in prices[name]:
-        print("found")
-        print(prices[name][str(date)])
-        return prices[name][str(date)]
+    if name in prices.keys():
+        if str(date) in prices[name]:
+            return prices[name][str(date)]
+        else:
+            print(f"finding {name} price for date: {date}")
+            end_at = date + (60 * 60 * 24)
+            return get_data(symbol,date,end_at,name)
     else:
-        print("finding")
+        prices[name] = {}
+        print(f"finding {name} price for date: {date}")
         end_at = date + (60 * 60 * 24)
         return get_data(symbol,date,end_at,name)
 
@@ -80,6 +100,7 @@ def feed_me(name,date):
     if name != 'USDT':
         date = sixty(int(date / 1000))
         price = find_price(name,date)
+        print(f"feed me: {name} :: {price}")
         return price
     else:
         return 1
