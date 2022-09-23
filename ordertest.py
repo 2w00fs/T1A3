@@ -14,53 +14,43 @@ def utc(ca):
     utc = time.strftime('%d/%m/%Y', time.localtime(createdat))
     return utc
 
-def basset(symbol,name,size,side):
-    sizeside = float(size) if side == "in" else float(size) * -1
+def basset(symbol,name,sizeside,date):
     if (name + "-") in symbol: # if true the asset is main asset being traded        
         direction = "in" if sizeside > 0 else "out"
         #return asset, baseasset, assetsize, baseassetsize, direction
-        return (name,None,sizeside,0,direction)
+        return (name,None,sizeside,0,direction,0)
     else: # if condition above is false the asset is the baseasset used to pay for the trade
         direction = "out" if sizeside > 0 else "in"
-        return (None,name,0,sizeside,direction)
+        basevalue = getprices.feed_me(name, date)
+        return (None,name,0,sizeside,direction,basevalue)
 
-def loopitems(item):
+def loop_items(item):
     if item['bizType'] == 'Cross Margin' or item['bizType'] == 'Exchange':
         context = json.loads(item["context"])
         symbol = context.get('symbol')
         name = item['currency']
         size = item['amount']
         side = item['direction']
+        sizeside = float(size) if side == "in" else float(size) * -1
         date = int(item['createdAt'])
         dateutc = utc(date)
         orderid = context.get("orderId")
+        return (context, symbol, name, size, side, sizeside, date, dateutc, orderid)
         
-        asset, baseasset, assetsize, baseassetsize, direction = basset(symbol,name,size,side)
+def parse_orders():
+    for item in mytestdata.data:
+        context, symbol, name, size, side, sizeside, date, dateutc, orderid = loop_items(item)
+        asset, baseasset, assetsize, baseassetsize, direction, basevalue = basset(symbol,name,sizeside, date)
 
         if orderid in orders:
             orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
-            if baseasset != None and orders[orderid].value['basevalue'] == 0:
-                orders[orderid].add(basevalue= getprices.feed_me(baseasset, date))
+            if orders[orderid].value['basevalue'] == 0:
+                orders[orderid].add(basevalue=basevalue)
         else:
-            orders[orderid] =  Order(orderid, dateutc, item['accountType'], symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize)
-            if baseasset != None:
-                orders[orderid].add(basevalue= getprices.feed_me(baseasset, date))
+            orders[orderid] =  Order(orderid, dateutc, item['accountType'], symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize,basevalue=basevalue)
 
-for index in mytestdata.data:
-    loopitems(index)
-
+parse_orders()
 for i in orders.values():
     print(i.value)
 
-getprices.store_prices()
-
-"""
-            if orders[orderid].get(basevalue) == 0:
-                if name != 'USDT':
-                    basevalue = getprices.feedme(name,date)
-                else:
-                    basevalue = 1
-            else:
-                    basevalue = 0
-
-"""
+#getprices.store_prices()
