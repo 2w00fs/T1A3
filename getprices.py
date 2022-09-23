@@ -3,7 +3,7 @@ import json
 import credentials
 from kucoin.client import Market
 
-json_file_name = "sample_test"
+json_file_name = "price_list"
 
 def check_json_notempty(fname):
     try:
@@ -75,8 +75,13 @@ def get_data(symbol,start,end,name):
         for i in range(1,15,1):
             print(f"retrying in...{i}")
             time.sleep(1)
-        data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
-        return parse_prices(data, start, name)
+        try:
+            data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
+        except Exception as e:
+            print(e)
+            return 1
+        else:
+            return parse_prices(data, start, name)
     else:
         time.sleep(1)
         return parse_prices(api_data, start, name)
@@ -97,7 +102,8 @@ def find_price(name,date):
         return get_data(symbol,date,end_at,name)
 
 def feed_me(name,date):
-    if name != 'USDT':
+    ignored_assets = ("USDT", "USD", "PAX","UST","AUD")
+    if name not in ignored_assets:
         date = sixty(int(date / 1000))
         price = find_price(name,date)
         print(f"feed me: {name} :: {price}")

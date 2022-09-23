@@ -2,9 +2,30 @@ import time
 import json
 import getprices
 import exchangerates
+import assettest
 from orderclass import Order
-import mytestdata
-#import basebtcdata
+
+order_data_file_name = "ledger_as_json"
+
+def check_json_notempty(fname):
+    try:
+        jfile = open(f"{fname}.json", 'r')
+    except:
+        print("FILE DOES NOT EXIST")
+    else:
+        read_start = jfile.read(1)
+        if not read_start:
+            print("NO DATA IN FILE")
+            jfile.close()
+        else:
+            jfile.close()
+            file = open(f"{fname}.json", 'r')
+            contents = json.load(file)
+            file.close()
+            return contents
+
+raw_data = check_json_notempty(order_data_file_name)
+
 orders = {}
 
 def utc(ca):
@@ -14,62 +35,105 @@ def utc(ca):
     utc = time.strftime('%d/%m/%Y', time.localtime(createdat))
     return utc
 
-def basset(symbol,name,sizeside,date):
-    fname = name + "-"
-    print(fname)
-    if (name + "-") in symbol: # if true the asset is main asset being traded        
-        direction = "in" if sizeside > 0 else "out"
-        #return asset, baseasset, assetsize, baseassetsize, direction
-        print(f"Symbol: {symbol}, Asset: {name}")
-        time.sleep(0.25)
-        return (name,None,sizeside,0,direction,0)
-    else: # if condition above is false the asset is the baseasset used to pay for the trade
-        direction = "out" if sizeside > 0 else "in"
-        #basevalue = getprices.feed_me(name, date)
-        basevalue = 0
-        print(f"Symbol: {symbol}, Base Asset: {name}")
-        time.sleep(0.25)
-        return (None,name,0,sizeside,direction,basevalue)
+def basset(ab,name,size,date,account_type):
+    if account_type != "MAIN":
+        # asset, baseasset, assetsize, baseassetsize, basevalue
+        if ab:
+            return (name,None,size,0,0)
+        else:
+            basevalue = getprices.feed_me(name, date)
+            return (None,name,0,size,basevalue)
+    else: # THIS EXISTS BECAUSE I AM TREATING DEPOSITS AND WITHDRAWALS AS A BUY/SELL TRANSACTION
+        basevalue = getprices.feed_me(name, date) 
+        basesize = size * basevalue
+        if ab:
+            return (name,"USD",size,basesize,basevalue)
+        else:
+            return ("USD",name,basesize,size,basevalue)
 
 def loop_items(item):
-    if item['bizType'] == 'Cross Margin' or item['bizType'] == 'Exchange':
-        id, currency, amount, fee, accountType, bizType, direction, createdAt, context = item.values()
+        id, currency, amount, fee, account_type, bizType, direction, createdAt, context = item.values()
         sizeside = float(amount) if direction == "in" else float(amount) * -1
         dateutc = utc(int(createdAt))
-        symbol, orderid = json.loads(context).values()
-        return (symbol, currency, float(amount), direction, sizeside, int(createdAt), dateutc, orderid)
+        symbol, orderid, txid = json.loads(context).values()
+
+        return (symbol, currency, float(amount), direction, sizeside, int(createdAt), dateutc, orderid,account_type)
+
+def is_asset(symbol, name):
+    if (f"{name}-") in symbol:
+        return True
+    else:
+        return False
+
+def order_direction(account_type, direction, size,is_asset):
+    if account_type != "MAIN" and is_asset == False:
+        side = "in" if direction == "out" else "out"
+    else:
+        side = direction
+    
+    sizeside = float(size) if direction == "in" else float(size) * -1
+    return direction, sizeside
+
+def parse_orders(item):
+    def symside(btype, name):
+            if btype == "Deposit":
+                sym = f"{name}-USD"
+            else:
+                sym = f"USD-{name}"
+            return sym
+            
+    if item['bizType'] == 'Cross Margin' or item['bizType'] == 'Exchange' or item['bizType'] == 'Deposit' or item['bizType'] == 'Withdrawal':
+        id, name, size, fee, balance, account_type, biz_type, direction, date, context = item.values()
+        #sizeside = float(size) if direction == "in" else float(size) * -1
+        dateutc = utc(int(date))
+
+        if biz_type == 'Deposit' or biz_type == 'Withdrawal':
+            try:
+                orderid, txid = json.loads(context).values()
+            except:
+                orderid = f"DW{date}"
+                symbol = symside(biz_type, name)
+            else:
+                symbol = symside(biz_type, name)
+        elif biz_type == 'Cross Margin' or biz_type == 'Exchange':
+            symbol, orderid, txid = json.loads(context).values()
         
-def parse_orders():
-    for item in mytestdata.data:
-        symbol, name, size, side, sizeside, date, dateutc, orderid = loop_items(item)
-        asset, baseasset, assetsize, baseassetsize, direction, basevalue = basset(symbol,name,sizeside, date)
+        a_or_b = is_asset(symbol, name)
+        direction, sizeside = order_direction(account_type, direction, size, a_or_b)
+        asset, baseasset, assetsize, baseassetsize, basevalue = basset(a_or_b,name,sizeside,date,account_type)
+        assettest.parse_assets(name, sizeside)
 
         if orderid in orders:
             orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
             if orders[orderid].value['basevalue'] == 0:
                 orders[orderid].add(basevalue=basevalue)
         else:
-            orders[orderid] =  Order(orderid, dateutc, item['accountType'], symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize,basevalue=basevalue)
+            orders[orderid] =  Order(orderid, dateutc, account_type, symbol, direction, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize,basevalue=basevalue)
 
-parse_orders()
+for i in raw_data:
+    if i['items']:
+        for x in i['items']:
+            #print(x)
+            parse_orders(x)
+
 for i in orders.values():
     print(i.value)
 
+for i in assettest.assets.values():
+    print(i.value)
+
+
+
 getprices.store_prices()
 
+# 1625097600000
+
+#1656633600000
+
 """
-
-context, symbol, name, size, side, date, orderid = item
-
-        context = json.loads(item["context"])
-        symbol = context.get('symbol')
-        name = item['currency']
-        size = item['amount']
-        side = item['direction']
-        sizeside = float(size) if side == "in" else float(size) * -1
-        date = int(item['createdAt'])
-        dateutc = utc(date)
-        orderid = context.get("orderId")
-
-id, currency, amount, fee, accountType, bizType, direction, createdAt, context
+for i in raw_data:
+    if i['items']:
+        for x in i['items']:
+            #print(x)
+            parse_orders(x)
 """
