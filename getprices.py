@@ -3,7 +3,10 @@ import json
 import credentials
 from kucoin.client import Market
 
-json_file_name = "price_list"
+errorlog = open("log2.txt", 'a')
+
+#json_file_name = "FULL_price_list"
+json_file_name = "rubbish"
 
 def check_json_notempty(fname):
     try:
@@ -20,7 +23,7 @@ def check_json_notempty(fname):
             return {}
         else:
             jfile.close()
-            file = open('sample.json', 'r')
+            file = open(f"{fname}.json", 'r')
             contents = json.load(file)
             file.close()
             return contents
@@ -57,37 +60,40 @@ def store_prices():
 
 def parse_prices(api_data, start, name):
     for i in api_data:
-        try:
-            ohlc = round((float(i[1]) + float(i[2]) + float(i[3]) + float(i[4])) / 4,4)
-        except:
-            print(F"PARSE_PRICES FAILED: {i}")
+        ohlc = round((float(i[1]) + float(i[2]) + float(i[3]) + float(i[4])) / 4,4)
+        date = int(i[0])
+        prices[name][str(date)] = ohlc # adds fetched values to stored data
+        if date == start:
+            return ohlc
         else:
-            date = int(i[0])
-            prices[name][str(date)] = ohlc # adds fetched values to stored data
-            if date == start:
-                return_price = ohlc
-    return return_price
+            print(f"Prices for {name} were returned however a price for {date} was not")
+            errorlog.write(f"{name} {date} no price found, substituted with 1.001001001\n\n")
+            return 1.001001001
 
 def get_data(symbol,start,end,name):
-    try:
-        api_data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
-    except:
-        for i in range(1,15,1):
-            print(f"retrying in...{i}")
-            time.sleep(1)
+    while True:
         try:
-            data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
+            api_data = client.get_kline(symbol=symbol,kline_type="1min",startAt=start,endAt=end)
         except Exception as e:
-            print(e)
-            return 1
+            if "Too Many Requests" in str(e.args):
+                print(f"Too many requests, data for {name} {start} will retry again in 20 seconds")
+                for i in range(1,20,1):
+                    #print(f"retrying in...{i}")
+                    time.sleep(1)
+                print("RETRYING...")
+            else:
+                print()
+                print(f"FAILED TO FETCH PRICE...{name}...{start}")
+                errorlog.write(f"FAILED TO FETCH PRICE FOR {name}...{start}, substituded with 1.010101\n")
+                errorlog.write(f"{e}\n\n")
+                print(e)
+                return 1.010101
         else:
-            return parse_prices(data, start, name)
-    else:
-        time.sleep(1)
-        return parse_prices(api_data, start, name)
+            time.sleep(1)
+            return parse_prices(api_data, start, name)
 
 def find_price(name,date):
-    symbol = name + "-USDT"
+    symbol = f"{name}-USDT"
     if name in prices.keys():
         if str(date) in prices[name]:
             return prices[name][str(date)]
@@ -111,5 +117,3 @@ def feed_me(name,date):
     else:
         return 1
         #data = get_data(symbol,start_at,end_at)
-
-# 1607520235369 1607520240
