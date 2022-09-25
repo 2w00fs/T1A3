@@ -42,6 +42,3 @@ class Name:
                         names[i[0]] = i[1]
 
                 return names
-    
-    def update(self, type, new_name):
-        self[type] = new_name
