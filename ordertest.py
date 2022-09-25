@@ -68,7 +68,7 @@ class Orders:
         def symside(btype, name):
             if btype == "Deposit":
                 return f"{name}-USD"
-          
+
             return f"USD-{name}"
 
         if biz_type in ('Cross Margin', 'Exchange', 'Deposit', 'Withdrawal'):
