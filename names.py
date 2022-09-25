@@ -11,13 +11,13 @@ class InvalidNameError(Exception):
         return ""
 
 class Name:
-    def __init__(self):
-        self.the_name = self.name()
-        self.log = f"{self.the_name}_LOG.txt"
-        self.ledger = f"{self.the_name}_Ledger.json"
-        self.prices = f"{self.the_name}_Prices.json"
-        self.orders = f"{self.the_name}_Orders.csv"
-        self.assets = f"{self.the_name}_Assets.csv"
+    def __init__(self, change=None):
+        self.the_name = self.set_name(change)
+        self.log = f"{self.the_name['log']}_LOG.txt"
+        self.ledger = f"{self.the_name['ledger']}_Ledger.json"
+        self.prices = f"{self.the_name['prices']}_Prices.json"
+        self.orders = f"{self.the_name['orders']}_Orders.csv"
+        self.assets = f"{self.the_name['assets']}_Assets.csv"
 
     def check_name(self, text):
         illegal = "[\#\<\$\^\+%\>\!\`\&\*\'\|\{\?\"\=\}\/\:\\\ \@\;]"
@@ -27,8 +27,8 @@ class Name:
 
         return text
 
-
-    def name(self):
+    def set_name(self,change=None):
+        print(change)
         while True:
             try:
                 file_name = input("Filename for Output Files pls: ")
@@ -36,6 +36,12 @@ class Name:
             except InvalidNameError as e:
                 print(e)
             else:
-                return file_name
+                names = {"log": file_name, "ledger": file_name, "prices": file_name, "orders": file_name, "assets": file_name}
+                if change != None:
+                    for i in change:
+                        names[i[0]] = i[1]
 
-base_file_name = Name()
+                return names
+    
+    def update(self, type, new_name):
+        self[type] = new_name
