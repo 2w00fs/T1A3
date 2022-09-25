@@ -1,18 +1,14 @@
 import time
 import json
 import getprices
-import exchangerates
 import assettest
 from orderclass import Order
 
-#order_data_file_name = "ledger_as_json"
-#order_data_file_name = "FULL_LEDGER"
-order_data_file_name = "mytestdata"
+orders = {}
 
-csv_name = input("Filename for CSV Output pls: ")
-def check_json_notempty(fname):
+def check_ledger_empty(f_name):
     try:
-        jfile = open(f"{fname}.json", 'r')
+        jfile = open(f_name, 'r')
     except:
         print("FILE DOES NOT EXIST")
     else:
@@ -22,14 +18,11 @@ def check_json_notempty(fname):
             jfile.close()
         else:
             jfile.close()
-            file = open(f"{fname}.json", 'r')
+            file = open(f_name, 'r')
             contents = json.load(file)
             file.close()
             return contents
 
-raw_data = check_json_notempty(order_data_file_name)
-
-orders = {}
 """
     the 36000000 is to add 10 hours to match AEST
     may remove later because localtime should work off the OS time, Docker has it set wrong methinks
@@ -45,10 +38,10 @@ def basset(asset_or_base,name,size,date,biz_type):
         if asset_or_base: # True means it is a Main Asset we are dealing with
             return (name,None,size,0,0)  # asset, baseasset, assetsize, baseassetsize, basevalue     
         
-        basevalue = getprices.feed_me(name, date) # If condition above is False we have a Base Asset and need to find its USD Value
+        basevalue = getprices.run_me(name, date) # If condition above is False we have a Base Asset and need to find its USD Value
         return (None,name,0,size,basevalue)
     
-    basevalue = getprices.feed_me(name, date) 
+    basevalue = getprices.run_me(name, date) 
     basesize = size * basevalue
     if asset_or_base:
         return (name,"USD",size,basesize,basevalue) # returns if a Deposit or Withdrawal uses Asset
@@ -93,7 +86,7 @@ def parse_orders(item):
         a_or_b = is_asset(symbol, name)
         side = order_direction(account_type, direction, a_or_b)
         asset, baseasset, assetsize, baseassetsize, basevalue = basset(a_or_b,name,sizeside,dateint,biz_type)
-        assettest.parse_assets(name, sizeside)
+        assettest.parse_assets(name, sizeside, basevalue*baseassetsize)
 
         if orderid in orders:
             orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
@@ -102,28 +95,24 @@ def parse_orders(item):
         else:
             orders[orderid] =  Order(orderid, dateutc, account_type, symbol, side, asset=asset, baseasset=baseasset,assetsize=assetsize, baseassetsize=baseassetsize,basevalue=basevalue)
 
-for i in raw_data:
-    if i['items']:
-        for x in i['items']:
-            parse_orders(x)
 
-csv_orders = open(f"{csv_name}_ORDERS.csv",'a')
-csv_orders.write("Order ID, Date, Account Type, Symbol, Side, Asset, Base Asset, Size, Base Asset Size, Base Value, Base Worth (USD)\n")
-for i in orders.values():
-        orderid,date,acctype,symbol,side,asset,base,size,basesize,basevalue,baseworth = i.value.values()
-        csv_orders.write(f"{orderid},{date},{acctype},{symbol},{side},{asset},{base},{size},{basesize},{basevalue},{baseworth}\n")
+def write_csvs(name):
+    with open(name.orders,'a') as csv_orders:
+        csv_orders.write("Order ID, Date, Account Type, Symbol, Side, Asset, Base Asset, Size, Base Asset Size, Base Value, Base Worth (USD)\n")
+        for i in orders.values():
+            orderid,date,acctype,symbol,side,asset,base,size,basesize,basevalue,baseworth = i.value.values()
+            csv_orders.write(f"{orderid},{date},{acctype},{symbol},{side},{asset},{base},{size},{basesize},{basevalue},{baseworth}\n")
 
-csv_orders.close()
+    csv_orders.close()
 
-csv_assets = open(f"{csv_name}_ASSETS.csv",'a')
-csv_assets.write("Asset, Size, USD Value\n")
-for i in assettest.assets.values():
-    asset,size,usdvalue = i.value.values()
-    csv_assets.write(f"{asset},{size},{usdvalue}\n")
+    with open(name.assets,'a') as csv_assets:
+        csv_assets.write("Asset, Size, USD Value\n")
+        for i in assettest.assets.values():
+            asset,size,usdvalue = i.value.values()
+            csv_assets.write(f"{asset},{size},{usdvalue}\n")
 
-csv_assets.close()
+    csv_assets.close()
 
-getprices.store_prices()
 
 # 1625097600000
 

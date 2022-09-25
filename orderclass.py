@@ -4,18 +4,18 @@ class Order:
     
     @property
     def value(self):
-        return {\
-            "orderid": self.__orderid,\
-            "date": self.__date,\
-            "acctype": self.__accounttype,\
-            "symbol": self.__symbol,\
-            "side": self.__direction,\
-            "asset": self.__asset,\
-            "base": self.__baseasset,\
-            "asize": self.__assetsize,\
-            "basesize": self.__baseassetsize,\
-            "basevalue": self.__basevalue,\
-            "baseworth": self.baseworth()\
+        return {
+            "orderid": self.__orderid,
+            "date": self.__date,
+            "acctype": self.__accounttype,
+            "symbol": self.__symbol,
+            "side": self.__direction,
+            "asset": self.__asset,
+            "base": self.__baseasset,
+            "asize": self.__assetsize,
+            "basesize": self.__baseassetsize,
+            "basevalue": self.__basevalue,
+            "baseworth": self.baseworth()
             }
 
     @value.setter
@@ -33,8 +33,8 @@ class Order:
         self.__basevalue = basevalue
     
     def add(self, asset=None,baseasset=None,assetsize=0,baseassetsize=0,basevalue=0):
-        self.__asset = self.__asset if asset == None else asset 
-        self.__baseasset = self.__baseasset if baseasset == None else baseasset
+        self.__asset = self.__asset if asset is None else asset 
+        self.__baseasset = self.__baseasset if baseasset is None else baseasset
         self.__assetsize += assetsize
         self.__baseassetsize += baseassetsize
         self.__basevalue += basevalue

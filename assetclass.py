@@ -6,8 +6,8 @@ class Asset:
     def value(self):
         return {
         "asset": self.__asset,
-        "size": self.__size,
-        "usdvalue": self.__usdvalue
+        "size": round(self.__size,5),
+        "usdvalue": round(self.__usdvalue,2)
         }
     
     @value.setter
