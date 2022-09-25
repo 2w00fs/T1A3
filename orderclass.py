@@ -1,7 +1,7 @@
 class Order:
     def __init__(self, orderid, date, accounttype, symbol, direction=None, asset=None, baseasset=None, assetsize=0, baseassetsize=0, basevalue=0):
         self.value = (orderid, date, accounttype, symbol, direction, asset, baseasset, assetsize, baseassetsize,basevalue)
-    
+
     @property
     def value(self):
         return {
@@ -31,7 +31,7 @@ class Order:
         self.__assetsize = assetsize
         self.__baseassetsize = baseassetsize
         self.__basevalue = basevalue
-    
+
     def add(self, asset=None,baseasset=None,assetsize=0,baseassetsize=0,basevalue=0):
         self.__asset = self.__asset if asset is None else asset 
         self.__baseasset = self.__baseasset if baseasset is None else baseasset

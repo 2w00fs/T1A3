@@ -7,7 +7,7 @@ import names
 
 def fetch_ledger():
     get_ledger.run_ledger(1622910800000,1623048348955)
-    
+
 def data_ledger(f_name):
     return ordertest.check_ledger_empty(f_name)
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         change_list.append(["ledger",f"{args.ledgername}"])
     if args.pricelist:
         change_list.append(["prices",f"{args.pricelist}"])
-    
+
     file_names = names.Name(change=change_list)
     _ledger = get_ledger.Ledger(file_names)
     _prices = getprices.Prices(file_names)

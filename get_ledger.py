@@ -20,7 +20,7 @@ class Ledger:
                 print("File is empty")
                 jfile.close()
                 return None
-        
+
             jfile.close()
             with open(self.file_name.ledger, 'r') as file:
                 contents = json.load(file)

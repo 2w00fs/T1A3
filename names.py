@@ -3,7 +3,7 @@ import re
 class InvalidNameError(Exception):
     def __init__(self,chars):
         super().__init__(f"Illegal character in file name,{self.vals(chars)} pls try a different one, spaces are not allowed")
-    
+
     def vals(self, chars):
         for i in chars:
             i = "[space]" if i == " " else i
@@ -42,6 +42,6 @@ class Name:
                         names[i[0]] = i[1]
 
                 return names
-    
+
     def update(self, type, new_name):
         self[type] = new_name

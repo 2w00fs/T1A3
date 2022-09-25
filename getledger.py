@@ -53,7 +53,7 @@ def main(startat,endat):
 
     with open(f"{name}.json", "w") as outfile:
         json.dump(data, outfile)
-    
+
 if __name__ == "__main__":
     main(1622910800000,1625029200000)
 
