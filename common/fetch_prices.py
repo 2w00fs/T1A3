@@ -109,8 +109,8 @@ class Prices:
     def run_me(self, name, date):
         ignored_assets = ("USDT", "USD", "PAX","UST","AUD")
         if name not in ignored_assets:
-            date = self.sixty(int(date / 1000))
-            price = self.find_price(name,date)
+            sixty_date = self.sixty(int(date / 1000))
+            price = self.find_price(name,sixty_date)
             print(f"Price for: {name} :: {price}")
             return price
 

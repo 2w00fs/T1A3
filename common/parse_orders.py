@@ -49,9 +49,9 @@ class Orders:
         basevalue = self.get_prices.run_me(name, date) 
         basesize = size * basevalue
         if asset_or_base:
-            return (name,"USD",size,basesize,basevalue) # returns if a Deposit or Withdrawal uses Asset
+            return ("USD",name,basesize,1,basevalue) # returns if a Deposit or Withdrawal uses Asset
 
-        return ("USD",name,basesize,size,basevalue) # returns if a Deposit or Withdrawal uses Base Asset
+        return (name,"USD",1,basesize,basevalue) # returns if a Deposit or Withdrawal uses Base Asset
 
     def is_asset(self, symbol, name):
         var = bool(f"{name}-" in symbol)
@@ -66,12 +66,12 @@ class Orders:
     def parse_orders(self, item):
         _, name, size, _, _, account_type, biz_type, direction, date, context = item.values()
         def symside(btype, name):
-            if btype == "Deposit":
+            if btype == "Withdrawal":
                 return f"{name}-USD"
           
             return f"USD-{name}"
 
-        if biz_type in ('Cross Margin', 'Exchange', 'Deposit', 'Withdrawal'):
+        if biz_type in ('Cross Margin', 'Isolated Margin', 'Margin', 'Exchange', 'Deposit', 'Withdrawal'):
             sizeside = float(size) if direction == "in" else float(size) * -1
             dateint = int(date)
             datestr = str(date)
@@ -92,7 +92,6 @@ class Orders:
             side = self.order_direction(account_type, direction, a_or_b)
             asset, baseasset, assetsize, baseassetsize, basevalue = self.basset(a_or_b,name,sizeside,dateint,biz_type)
             parse_assets(name, sizeside, basevalue*baseassetsize)
-
             if orderid in self.orders:
                 self.orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
                 if self.orders[orderid].value['basevalue'] == 0:

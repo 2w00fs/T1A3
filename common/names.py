@@ -13,11 +13,11 @@ class InvalidNameError(Exception):
 class Name:
     def __init__(self, change=None):
         self.the_name = self.set_name(change)
-        self.log = f"{self.the_name['log']}_LOG.txt"
-        self.ledger = f"{self.the_name['ledger']}_Ledger.json"
-        self.prices = f"{self.the_name['prices']}_Prices.json"
-        self.orders = f"{self.the_name['orders']}_Orders.csv"
-        self.assets = f"{self.the_name['assets']}_Assets.csv"
+        self.log = self.the_name['log']
+        self.ledger = self.the_name['ledger']
+        self.prices = self.the_name['prices']
+        self.orders = self.the_name['orders']
+        self.assets = self.the_name['assets']
 
     def check_name(self, text):
         illegal = "[\#\<\$\^\+%\>\!\`\&\*\'\|\{\?\"\=\}\/\:\\\ \@\;]"
@@ -28,18 +28,18 @@ class Name:
         return text
 
     def set_name(self,change=None):
-        print(change)
         while True:
             try:
-                file_name = input("Filename for Output Files pls: ")
-                self.check_name(file_name)
+                fn = input("Filename for Output Files pls: ")
+                self.check_name(fn)
             except InvalidNameError as e:
                 print(e)
             else:
-                names = {"log": file_name, "ledger": file_name, "prices": file_name, "orders": file_name, "assets": file_name}
-                if change != None:
+                
+                names = {"log": f"{fn}LOG.txt", "ledger": f"{fn}_Ledger.json", "prices": f"{fn}_Prices.json", "orders": f"{fn}_Orders.csv", "assets": f"{fn}_Assets.csv"}
+                if change is not None:
                     for i in change:
-                        names[i[0]] = i[1]
+                        names[i[0]] = f"{i[1]}.json"
 
                 return names
     

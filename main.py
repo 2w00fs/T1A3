@@ -18,7 +18,7 @@ if __name__ == "__main__":
     file_names = Name(change=change_list)
     _ledger = Ledger(file_names)
     _orders = Orders(file_names)
-    _ledger.run_ledger(1622910800000,1623048348955)
+    _ledger.run_ledger(1622910800000,162048348955)
 
     for i in _orders.check_ledger_empty():
         if i['items']:
