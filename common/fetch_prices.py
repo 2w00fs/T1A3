@@ -94,17 +94,16 @@ class Prices:
 
     def find_price(self, name, date):
         symbol = f"{name}-USDT"
+        end_at = date + (60 * 60 * 24)
         if name in self.prices.keys():
             if str(date) in self.prices[name]:
                 return self.prices[name][str(date)]
 
             print(f"finding {name} price for date: {date}")
-            end_at = date + (60 * 60 * 24)
             return self.get_data(symbol,date,end_at,name)
 
         self.prices[name] = {}
         print(f"finding {name} price for date: {date}")
-        end_at = date + (60 * 60 * 24)
         return self.get_data(symbol,date,end_at,name)
 
     def run_me(self, name, date):

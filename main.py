@@ -1,17 +1,8 @@
-import ordertest
-import getprices
-import get_ledger
+from common.parse_orders import Orders
+from common.fetch_ledger import Ledger
 import argparse
-import names
+from common.names import Name
 #1623048348955 1625029200000
-
-def fetch_ledger():
-    get_ledger.run_ledger(1622910800000,1623048348955)
-    
-def data_ledger(f_name):
-    return ordertest.check_ledger_empty(f_name)
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,10 +15,9 @@ if __name__ == "__main__":
     if args.pricelist:
         change_list.append(["prices",f"{args.pricelist}"])
     
-    file_names = names.Name(change=change_list)
-    _ledger = get_ledger.Ledger(file_names)
-    _prices = getprices.Prices(file_names)
-    _orders = ordertest.Orders(file_names)
+    file_names = Name(change=change_list)
+    _ledger = Ledger(file_names)
+    _orders = Orders(file_names)
     _ledger.run_ledger(1622910800000,1623048348955)
 
     for i in _orders.check_ledger_empty():

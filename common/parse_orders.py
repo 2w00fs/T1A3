@@ -1,14 +1,14 @@
 import time
 import json
-import getprices
-import assettest
-from orderclass import Order
+from common.parse_assets import assets, parse_assets
+from common.order_class import Order
+from common.fetch_prices import Prices
 
 class Orders:
     def __init__(self, file_name):
         self.orders = {}
         self.file_name = file_name
-        self.get_prices = getprices.Prices(file_name)
+        self.get_prices = Prices(file_name)
 
 
     def check_ledger_empty(self):
@@ -91,7 +91,7 @@ class Orders:
             a_or_b = self.is_asset(symbol, name)
             side = self.order_direction(account_type, direction, a_or_b)
             asset, baseasset, assetsize, baseassetsize, basevalue = self.basset(a_or_b,name,sizeside,dateint,biz_type)
-            assettest.parse_assets(name, sizeside, basevalue*baseassetsize)
+            parse_assets(name, sizeside, basevalue*baseassetsize)
 
             if orderid in self.orders:
                 self.orders[orderid].add(asset=asset, baseasset=baseasset, assetsize=assetsize, baseassetsize=baseassetsize)
@@ -112,7 +112,7 @@ class Orders:
 
         with open(self.file_name.assets,'a') as csv_assets:
             csv_assets.write("Asset, Size, USD Value\n")
-            for i in assettest.assets.values():
+            for i in assets.values():
                 asset,size,usdvalue = i.value.values()
                 csv_assets.write(f"{asset},{size},{usdvalue}\n")
 

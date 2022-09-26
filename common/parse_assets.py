@@ -1,4 +1,4 @@
-from assetclass import Asset
+from common.asset_class import Asset
 
 assets = {}
 

@@ -1,0 +1,7 @@
+credentials.py
+__pycache__
+___test_Assets.csv
+___test_Ledger.json
+___test_Orders.csv
+___test_Prices.json
+.DS_Store
