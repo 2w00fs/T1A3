@@ -9,4 +9,26 @@ Order ID, Date, Account Type, Symbol, Side, Asset, Base Asset, Size, Base Asset 
 5fc7150b0feff70007b9f59b,03/12/2020,MARGIN,USDC-USDT,out,USDC,USDT,-30.0,4.0,1,4.0
 5fc782a0dd6829000691f43f,03/12/2020,MARGIN,ETH-USDT,out,ETH,USDT,-10.0,1.0,1,1.0
 5fdfdca9b7cd6a00066c8797,21/12/2020,TRADE,BTC-USDT,out,BTC,USDT,-1.0,3.0,1,3.0
-5fe27ef2fb0b170006f79320,23/12/2020,TRADE,BTC-USDT,out,BTC,USDT,-1.0,3.0,1,3.0
+
+        Order ID                Date   AccType   Symbol    Side    Asset  Base Asset  Size    BA Size   B Val  B Worth
+5fe27ef2fb0b170006f79320,   23/12/2020, TRADE,  BTC-USDT,   out,    BTC,    USDT,      -1.0,   3.0,       1,     3.0
+
+
+
+        Order ID              Date      AccType   Symbol    Side    Currency   Amount
+5fe27ef2fb0b170006f79320   23/12/2020    TRADE   BTC-USDT   in        BTC       1.0
+5fe27ef2fb0b170006f79320   23/12/2020    TRADE   BTC-USDT   out       USDT      1,000
+
+
+Asset
+    id = 5fe27ef2fb0b170006f79320,
+    date = 23/12/2020
+    symbol = BTC-USDT
+    
+    Asset if "currency"- in symbol
+            else
+                Base Asset
+
+    USD Value = if Asset, 0
+                    else
+                        Get Base Value
