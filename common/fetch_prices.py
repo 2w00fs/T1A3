@@ -3,7 +3,7 @@ import json
 import credentials
 from kucoin.client import Market
 from shared import db, cute
-from schemas import Prices, PricesSchema, Ledger, LedgerSchema, LedgerSecondSum, LedgerSecondSumSchema, LedgerPrices, LedgerPricesSchema
+from schemas import Prices, Ledger, LedgerSchema, LedgerPrices
 from sqlalchemy.dialects.postgresql import insert
 
 class FetchPrices:
@@ -112,145 +112,132 @@ class FetchPrices:
 
 
     def find_price(self, name, date):
-        #symbol = f"{name}-USDT"
-        symbol = "LUNA-USDT"
-        # check if price data already in database
-        # if no data found proceed to fetch it
-        search = cute(db.select(Prices).filter(db.and_(Prices.date == date, Prices.asset == name))).scalars().first()
-        if search == None:
-            api_data = self.get_data(symbol,date,name)
-            ohlc = self.parse_prices(api_data, date, name)
-            return ohlc        
-        else:
-            return search.price
+        ignored_assets = ("USDT", "USD", "PAX","UST","AUD", "ZIL", "CS", "WAX","GAS", "PMGT")
+        if name not in ignored_assets:
+            symbol = f"{name}-USDT"
+            # check if price data already in database
+            # if no data found proceed to fetch it
+            search = cute(db.select(Prices).filter(db.and_(Prices.date == date, Prices.asset == name))).scalars().first()
+            if search == None:
+                api_data = self.get_data(symbol,date,name)
+                ohlc = self.parse_prices(api_data, date, name)
+                return ohlc        
+            else:
+                return search.price
+        
+        return 0
 
 
     def run_me(self, name, date):
-        ignored_assets = ("USDT", "USD", "PAX","UST","AUD", "ZIL", "CS", "WAX","GAS")
-        #if name == "LUNA":
-        #    name == "LUNC"
-
-        if name not in ignored_assets:
-            sixty_date = self.sixty(int(int(date) / 1000))
-            price = self.find_price(name,sixty_date)
-            #print(f"Price for: {name} :: {price} :: {sixty_date}")
-            return price
+        sixty_date = self.sixty(int(int(date) / 1000))
+        price = self.find_price(name,sixty_date)
+        #print(f"Price for: {name} :: {price} :: {sixty_date}")
+        return price
 
 
 def prices_test1():
-    asset_date = cute(db.select(LedgerSecondSum.asset, LedgerSecondSum.date).filter(LedgerSecondSum.asset == "LUNA").group_by(LedgerSecondSum.asset, LedgerSecondSum.date)).all()
-    base_asset_date = cute(db.select(LedgerSecondSum.base_asset, LedgerSecondSum.date).filter(LedgerSecondSum.base_asset == "LUNA").group_by(LedgerSecondSum.base_asset, LedgerSecondSum.date)).all()
-    #base_asset_date = cute(db.select(LedgerSecondSum.base_asset, LedgerSecondSum.date).filter(LedgerSecondSum.base_asset.notlike('USDT'), LedgerSecondSum.biz_type == 'Deposit').group_by(LedgerSecondSum.base_asset, LedgerSecondSum.date)).all()
+    asset_date = cute(db.select(Ledger.asset, Ledger.date).filter(Ledger.asset == "LUNA").group_by(Ledger.asset, Ledger.date)).all()
     
     fetch_prices = FetchPrices()
-    for i in base_asset_date:
-        sixty_date = fetch_prices.sixty(int(int(i.date) / 1000))
-        #print(f"{i.asset} {sixty_date}")
-        fetch_prices.run_me(i.base_asset, i.date)
-    
+   
     for v in asset_date:
-        sixty_date = fetch_prices.sixty(int(int(i.date) / 1000))
+        sixty_date = fetch_prices.sixty(v.date)
         #print(f"{i.asset} {sixty_date}")
         fetch_prices.run_me(v.asset, v.date)
 
 
 def prices_test():
-   
-    orders = cute(db.select(LedgerPrices)).scalars().all()
+   pass
+
+
+def unix_length(ca):
+    if isinstance(ca, str):
+        int_ca = int(ca)
+    else:
+        int_ca = ca
     
+    if int_ca > 9999999999:
+        int_ca = int(int_ca / 1000)
     
-    def usd(o):
-        val = 0
-        for i in o:
-            if i.base_asset == "USD":
-                val += i.asset_size * i.base_price
+    return int_ca
         
-        return val
-
-
-    def ords(o):
-        val = 0
-        for i in o:
-            if i.symbol == f"{i.asset}-{i.asset}":
-                if i.biz_type == 'Debt Repayment' or i.biz_type == 'Borrowings':
-                    val += i.asset_size * i.base_price
-            #else:
-            #    val += i.base_asset_size * i.base_price
-
-        return val
+def parse_date(ca):
+    extra_dates = {
+        "utc": "DD/MM/YY",
+        "fy": 0
+    }
     
+    int_ca = unix_length(ca)
     
-    #print(usd(orders))
-    print(ords(orders))
-
-
-def utc(ca):
-        createdat = int(int(ca) / 1000)
-        local_time = time.strftime('%d/%m/%Y', time.localtime(createdat))
-        return local_time
+    extra_dates['utc'] = time.strftime('%d/%m/%Y', time.localtime(int_ca))
+    month = time.strftime('%m', time.localtime(int_ca))
+    year = time.strftime('%Y', time.localtime(int_ca))
     
-
-def month(ca):
-        createdat = int(int(ca) / 1000)
-        local_time = time.strftime('%m', time.localtime(createdat))
-        return int(local_time)
-
-
-def year(ca):
-        createdat = int(int(ca) / 1000)
-        local_time = time.strftime('%Y', time.localtime(createdat))
-        return int(local_time)
+    if int(month) >= 7:
+        extra_dates['fy'] = int(year)
+    elif int(month) < 7:
+        extra_dates['fy'] = int(year) - 1
+        
+    return extra_dates
     
 
 def ledger_prices():
     fetch_prices = FetchPrices()
-    orders = cute(db.select(LedgerSecondSum)).scalars().all()
+    orders = cute(db.select(Ledger)).scalars().all()
     for i in orders:
-        price_date = fetch_prices.sixty(int(int(i.date) / 1000))
-        if i.base_asset == 'USDT':
-            price = 1
-        elif i.base_asset == 'USD':
-            price = cute(db.select(Prices.price)
-                           .filter(db.and_(Prices.asset == i.asset, Prices.date == price_date))).scalars().first()
+        price = 0
+        price_date = fetch_prices.sixty(unix_length(i.date))
+        
+        if f'{i.asset}-' in i.symbol and f'{i.asset}-{i.asset}' not in i.symbol:
+            asset_type = 'main'
         else:
-            price = cute(db.select(Prices.price)
-                           .filter(db.and_(Prices.asset == i.base_asset, Prices.date == price_date))).scalars().first()
+            asset_type = 'base'
+
+
+        if asset_type == 'base' and i.asset == 'USDT':
+            price = 1
+        elif asset_type == 'base' and i.asset != 'USDT':
+            price = fetch_prices.find_price(i.asset, price_date)
+        elif asset_type == 'main' and '-USD' in i.symbol and '-USDT' not in i.symbol:
+            price = fetch_prices.find_price(i.asset, price_date)
         
-        if price == 'None':
-            price = 0
+        if i.direction == 'in':
+            fee = i.fee
+        elif i.direction == 'out':
+            fee = 0 - i.fee
 
-        ass_size = round(i.asset_size,4)
-        bass_size = round(i.base_asset_size, 4)
-        utc_ = utc(i.date)
-        month_ = month(i.date)
+        ass_size = round(i.size, 4)
+        dates = parse_date(i.date)
         
-        if month_ >= 7:
-            fy= int(year(i.date))
-        elif month_ < 7:
-            fy = int(year(i.date)) - 1
-
-
-        insert_stmt = insert(LedgerPrices).values(
+        try:
+            insert_stmt = insert(LedgerPrices).values(
+                                                    id = i.id,
                                                     order_id = i.order_id,
                                                     date = i.date,
-                                                    date_utc = utc_,
+                                                    date_utc = dates['utc'],
                                                     acc_type = i.acc_type,
                                                     biz_type = i.biz_type,
                                                     symbol = i.symbol,
                                                     asset = i.asset,
-                                                    base_asset = i.base_asset,
+                                                    asset_type = asset_type,
                                                     direction = i.direction,
-                                                    asset_size = ass_size,
-                                                    base_asset_size = bass_size,
-                                                    fee = i.fee,
-                                                    fee_asset = i.fee_asset,
-                                                    fee_kcs = i.fee_kcs,
-                                                    base_price = price,
-                                                    fy = fy
+                                                    size = ass_size,
+                                                    fee = fee,
+                                                    price_usdt = price,
+                                                    value_usdt = price * ass_size,
+                                                    fee_usdt = price * fee,
+                                                    fy = dates['fy']
                                                 )
-
-        do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-        cute(do_nothing_stmt)
+        except:
+            print(f'id = {i.id}')
+            print(f'price = {price}')
+            print(f'size = {ass_size}')
+            print(f'fee = {fee}')
+        else:
+            do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['id'])
+            cute(do_nothing_stmt)
         
     db.session.commit()
 
+# price = cute(db.select(Prices.price)
+#                           .filter(db.and_(Prices.asset == i.asset, Prices.date == price_date))).scalars().first()

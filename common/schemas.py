@@ -206,28 +206,28 @@ class PricesSchema(ma.Schema):
 class LedgerPrices(db.Model):
     __tablename__ = 'ledger_prices'
 
-    order_id = db.Column(db.String, primary_key=True)
-    date = db.Column(db.String)
+    id = db.Column(db.String, primary_key=True)
+    order_id = db.Column(db.String)
+    date = db.Column(db.Integer)
     date_utc = db.Column(db.String)
     acc_type = db.Column(db.String)
     biz_type = db.Column(db.String)
     symbol = db.Column(db.String)
     asset = db.Column(db.String)
-    base_asset = db.Column(db.String)
+    asset_type = db.Column(db.String)
     direction = db.Column(db.String)
-    asset_size = db.Column(db.Float)
-    base_asset_size = db.Column(db.Float)
+    size = db.Column(db.Float)
     fee = db.Column(db.Float)
-    fee_asset = db.Column(db.String)
-    fee_kcs = db.Column(db.Float)
-    base_price = db.Column(db.Float)
+    price_usdt = db.Column(db.Float)
+    value_usdt = db.Column(db.Float)
+    fee_usdt = db.Column(db.Float)
     fy = db.Column(db.Integer)
 
 
 class LedgerPricesSchema(ma.Schema):
     class Meta:
-        fields = ('order_id', 'date', 'date_utc', 'acc_type', 'biz_type', 'symbol', 'asset', 'base_asset',
-                  'direction', 'asset_size', 'base_asset_size', 'fee', 'fee_asset', 'fee_kcs', 'base_price', 'fy')
+        fields = ('id', 'order_id', 'date', 'date_utc', 'acc_type', 'biz_type', 'symbol', 'asset',
+                  'asset_type', 'direction', 'size', 'fee', 'price_usdt', 'value_usdt', 'fee_usdt', 'fy')
         
 
 class FuturesOrderId(db.Model):

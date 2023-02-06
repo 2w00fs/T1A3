@@ -3,8 +3,8 @@ import credentials
 import time
 from shared import db, ma, cute
 from schemas import (
-                        FuturesTHist, FuturesLedger, FuturesLedgerSum,
-                        FuturesFunding, FuturesLedgerSumTwo, FuturesOrderId,
+                        FuturesTHist, FuturesLedger,
+                        FuturesFunding, FuturesOrderId,
                         FuturesTransactionHistory, FuturesLedgerDate, FuturesFundingDate,
                         FuturesOrderIdDate
                     )
@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 
 futures_client = User(credentials.futures_api_key, credentials.futures_secret, credentials.api_passphrase)
+
 
 def futures_date_to_integer():
     futuresOrderId = cute(db.select(FuturesOrderId)).scalars().all()
@@ -48,7 +49,6 @@ def futures_date_to_integer():
     
     db.session.commit()
 
-    
 
 def futures_date_to_integer__OG():
     #   FuturesTHist, FuturesLedger, FuturesFunding,
@@ -181,7 +181,7 @@ def running_sizes_orderids():
         print(f"{v['date']} {round(v['value'],4)}")
 
 
-def balance_at_date(date):
+def futures_balance_at_date(date, date_from):
     print(date)
     # 1593525600    1625061600  1656597600  1688133600
     asset = 'XBT'
@@ -251,8 +251,6 @@ def balance_at_date(date):
             }
     
     
-
-
 def futures_thist(thist):
     for i in thist['dataList']:
         insert_stmt = insert(FuturesTHist).values(
@@ -317,6 +315,7 @@ def futures_order_id(orderIdLedger):
     cute(do_nothing_stmt)
             
     db.session.commit()
+
 
 def futures_funding(v):
     for i in v:
@@ -389,6 +388,7 @@ def run_order_by_id():
                 futures_order_id(ledger)
                 time.sleep(0.5)
 
+
 def get_test():
     # ledger = futures_client.get_futures_fills(startAt=1652659199194,endAt=1652831999193,currentPage=1)
     #items = ledger['items']
@@ -415,8 +415,6 @@ def get_test():
         time.sleep(5) # wait for 0.2 seconds
 
 
-# 1583020800000 1659139200000
-# FY 21 22 1625097600000 1656633600000
 def run_futures_ledger(startat, endat, ledger_type, symbol=None):
     if ledger_type == 't-history':
         day_length = 86400000
@@ -509,234 +507,11 @@ def run_futures_fills(startat,endat):
 
 
 def futures_test():
-    r = cute(db.select(db.func.sum(FuturesFunding.funding)).filter(FuturesFunding.settleCurrency == "XBT")).all()
-    print(r)
-    
-    '''
-    date_int = int(1652326988991 / 1000000)  
-    insert_stmt = insert(FuturesLedger).values(
-    id = '627c824c3c7feb583280f964',
-    order_id = '627c824ca7b4c30001806aa3',
-    date = str(date_int),
-    trade_type = 'trade',
-    symbol = 'XBTUSDM',
-    direction = 'buy',
-    size = 3776,
-    settle_asset = 'XBT',
-    value = 0.1317563456,
-    price = 28659,
-    fee_currency = 'XBT',
-    fee = 0.0000790538
-    )
-    
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(
-    index_elements=['id'])
-    
-    cute(do_nothing_stmt)
-    #db.insert(e).on_conflict_do_nothing(index_elements=['id'])
-    db.session.commit()
-    '''
-
-
-def futures_order_sum(oid):
-    complete = cute(db.select(FuturesLedger).filter(FuturesLedger.order_id == oid)).scalars()
-    #complete = cute(db.select(FuturesLedger).filter(FuturesLedger.id == oid)).scalars()
-    size = 0
-    value = 0
-    fee = 0
-    price = 0
-    order_id = ''
-    fee_currency = ''
-    direction = ''
-    settle_asset = ''
-    symbol = ''
-    trade_type = ''
-    date = ''
-
-    for i in complete:
-        fee += (i.fee * -1)
-        price = i.price
-        fee_currency = i.fee_currency
-        direction = i.direction
-        settle_asset = i.settle_asset
-        symbol = i.symbol
-        trade_type = i.trade_type
-        date = i.date
-        
-        if i.direction == 'buy':
-            size += i.size
-            value += i.value
-        else:
-            size += (i.size * -1)
-            value += (i.value * -1)
-        
-        
-        # order_id = i.id
-        if i.order_id:
-            order_id = i.order_id
-        else:
-            order_id = i.id
-            
-    insert_stmt = insert(FuturesLedgerSum).values(
-        order_id = order_id,
-        date = date,
-        trade_type = trade_type,
-        symbol = symbol,
-        direction = direction,
-        size = size,
-        settle_asset = settle_asset,
-        value = value,
-        price = price,
-        fee_currency = fee_currency,
-        fee = fee
-    )
-
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-    cute(do_nothing_stmt)
-    db.session.commit()
-
-
-def sym(symbol):
-    r = cute(db.select(FuturesLedgerSum.symbol, db.func.sum(FuturesLedgerSum.size))
-         .group_by(FuturesLedgerSum.symbol).filter(FuturesLedgerSum.symbol == symbol)).first()
-    print(r)
+    pass
 
 
 def futures_value():
-    #print('FuturesLedgerSumTwo')
-    ass_size = cute(db.select(FuturesLedgerSumTwo.symbol, db.func.sum(FuturesLedgerSumTwo.value)).group_by(FuturesLedgerSumTwo.symbol))
-    fee = cute(db.select(FuturesLedgerSumTwo.fee_currency, db.func.sum(FuturesLedgerSumTwo.fee)).group_by(FuturesLedgerSumTwo.fee_currency))
-    size = 0
-    for i in ass_size:
-        if 'USDT' in i[0]:
-            print(i[0])
-            size = size + i[1]
-        #if (i.sum > 0.1) or (i.sum < -0.1):
-            #print(f'{i.settle_asset} {i.sum}')
-            #size.update({i.settle_asset: i.sum})
-    
-    print(size)
-    print()
-    for f in fee:
-        print(f)
-
-    return size
-    
-    '''
-    print()
-    
-    b_ass_size = cute(db.select(FuturesLedgerSum.fee_currency, db.func.sum(FuturesLedgerSum.fee)).group_by(FuturesLedgerSum.fee_currency))
-    for v in b_ass_size:
-        try:
-            if (v.sum > 0.1) or (v.sum < -0.1):
-                print(f'{v.fee_currency} {v.sum}')
-        except:
-            pass
-        else:
-            pass
-    '''
-
-
-def futures_value2():
-    print('FuturesLedgerSumTwo')
-    ass_size = cute(db.select(FuturesLedgerSumTwo.symbol, db.func.sum(FuturesLedgerSumTwo.size)).group_by(FuturesLedgerSumTwo.symbol))
-    for i in ass_size:
-        if (i.sum > 0.1) or (i.sum < -0.1):
-                print(f'{i.symbol} {i.sum}')
-
-
-def futures_funding_value():
-    ass_size = cute(db.select(FuturesFunding.settleCurrency, db.func.sum(FuturesFunding.funding)).group_by(FuturesFunding.settleCurrency))
-    #print('futures_funding_value')
-    size = {}
-    for i in ass_size:
-        try:
-            if (i.sum > 0.1) or (i.sum < -0.1):
-                #print(f'{i.settleCurrency} {i.sum}')
-                size.update({i.settleCurrency: i.sum})
-        except:
-            pass
-        else:
-            pass
-
-    return size
-
-
-def futures_transfer_value():
-    ass_size = cute(db.select(FuturesTHist.currency, FuturesTHist.type, db.func.sum(FuturesTHist.amount))
-                    .group_by(FuturesTHist.currency, FuturesTHist.type)
-                    .filter(FuturesTHist.type.notlike('RealisedPNL')))
-    
-    #ass_size = cute(db.select(FuturesTHist.currency, db.func.sum(FuturesTHist.amount)).group_by(FuturesTHist.currency))
-    size = {}
-    #print('futures_transfer_value')
-    for i in ass_size:
-        #print(i)
-        if (i.sum > 0.1) or (i.sum < -0.1):
-            print(f'{i.currency} {i.sum}')
-            size.update({i.currency: i.sum})
-            
-    return size
-
-  
-def futures_order_collate(oid, type):
-    if type == 'oid':
-        order = cute(db.select(FuturesLedger).filter(FuturesLedger.order_id == oid)).scalars().first()   
-        number_of_orders = cute(db.select(db.func.count(FuturesLedger.order_id)).filter(FuturesLedger.order_id == oid)).scalars().first()
-        fee_size = cute(db.select(db.func.sum(FuturesLedger.fee)).filter(FuturesLedger.order_id == oid)).scalars().first()
-        value_size = cute(db.select(db.func.sum(FuturesLedger.value)).filter(FuturesLedger.order_id == oid)).scalars().first()
-        size_size = cute(db.select(db.func.sum(FuturesLedger.size)).filter(FuturesLedger.order_id == oid)).scalars().first()
-        price_sum = cute(db.select(db.func.sum(FuturesLedger.price)).filter(FuturesLedger.order_id == oid)).scalars().first()
-    
-    if type == 'id':
-        print('YES')
-        order = cute(db.select(FuturesLedger).filter(FuturesLedger.id == oid)).scalars().first()   
-        number_of_orders = cute(db.select(db.func.count(FuturesLedger.id)).filter(FuturesLedger.id == oid)).scalars().first()
-        fee_size = cute(db.select(db.func.sum(FuturesLedger.fee)).filter(FuturesLedger.id == oid)).scalars().first()
-        value_size = cute(db.select(db.func.sum(FuturesLedger.value)).filter(FuturesLedger.id == oid)).scalars().first()
-        size_size = cute(db.select(db.func.sum(FuturesLedger.size)).filter(FuturesLedger.id == oid)).scalars().first()
-        price_sum = cute(db.select(db.func.sum(FuturesLedger.price)).filter(FuturesLedger.id == oid)).scalars().first()
-
-
-    average_price = price_sum / number_of_orders
-  
-    if order.direction == 'buy':
-        total_value = value_size + fee_size
-    else:
-        total_value = 0 - (value_size + fee_size)
-        fee_size = 0 - fee_size
-        size_size = 0 - size_size
-    
-    f_order_id = oid
-    f_date = order.date
-    f_trade_type = order.trade_type
-    f_symbol = order.symbol
-    f_direction = order.direction
-    f_size = size_size
-    f_settle_asset = order.settle_asset
-    f_value = total_value
-    f_price = average_price
-    f_fee_currency = order.fee_currency
-    f_fee = fee_size
-
-    
-    insert_stmt = insert(FuturesLedgerSumTwo).values(
-        order_id=f_order_id,
-        date=f_date,
-        trade_type=f_trade_type,
-        symbol=f_symbol,
-        direction=f_direction,
-        size=f_size,
-        settle_asset = f_settle_asset,
-        value=f_value,
-        price=f_price,
-        fee_currency=f_fee_currency,
-        fee=f_fee
-    )
-
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-    cute(do_nothing_stmt)
-    db.session.commit()
+    pass
 
 
 def unique_futures_symbol(start, end):
@@ -747,49 +522,9 @@ def unique_futures_symbol(start, end):
 
 
 def unique_futures_orders():
-    orders = cute(db.select(db.distinct(FuturesLedger.order_id))).scalars()
-    ids_ran = 0
-    for i in orders:
-        if i == None and ids_ran == 0:
-            ids = cute(db.select(FuturesLedger.id).filter(FuturesLedger.order_id == None)).scalars()
-            for d in ids:
-                print(f'ids {d}')
-                futures_order_collate(d, 'id')
-            ids_ran = 1
-        elif i == None and ids_ran == 1:
-            print("R A N  A L R E A D Y")
-        else:
-            print(f'oid {i}')
-            futures_order_collate(i, 'oid')
+    pass
 
 
-'''
-
-d = {'dataList':[{
-    'id': 1157027210734040,
-    'symbol': 'XBTUSDTM',
-    'timePoint': 1671480000000,
-    'fundingRate': 0.0001,
-    'markPrice': 16554.11,
-    'positionQty': -159,
-    'positionCost': -2632.10349,
-    'funding': 0.26321034,
-    'settleCurrency': 'USDT'
-    }]}
-
-
-futures_funding(d)
-
-
-{
-    'id': 1157027210734040,
-    'symbol': 'XBTUSDTM',
-    'timePoint': 1671480000000,
-    'fundingRate': 0.0001,
-    'markPrice': 16554.11,
-    'positionQty': -159,
-    'positionCost': -2632.10349,
-    'funding': 0.26321034,
-    'settleCurrency': 'USDT'
-    }  
-'''
+def orderId():
+    ledger = futures_client.get_order_by_id('60ffc1b82b34400006785eb9')
+    print(ledger)

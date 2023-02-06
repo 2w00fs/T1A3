@@ -1,10 +1,14 @@
-
 import time
+from kucoin.client import User # Ledger data stored accessed through User endpoint in API and its SDK
+import credentials
+
 from shared import db, cute
-from schemas import Ledger, LedgerSchema, LedgerSum, LedgerSumSchema, LedgerSecond, LedgerSecondSum, LedgerSecondSumSchema
+from schemas import Ledger, LedgerSecond
 from ledger_entry import LedgerEntry
 from pprint import pprint
 from sqlalchemy.dialects.postgresql import insert
+
+client = User(credentials.api_key, credentials.api_secret, credentials.api_passphrase) # Create User class called client
 
 
 def parse_date(ca):
@@ -13,19 +17,22 @@ def parse_date(ca):
         "fy": 0
     }
     
-    if type(ca) == 'str':
-        ca = int(ca)
+    if isinstance(ca, str):
+        int_ca = int(ca)
+    else:
+        int_ca = ca
     
-    createdat = int(int(ca) / 1000)
+    if int_ca > 9999999999:
+        int_ca = int(int_ca / 1000)
     
-    extra_dates['utc'] = time.strftime('%d/%m/%Y', time.localtime(createdat))
-    month = time.strftime('%m', time.localtime(createdat))
-    year = time.strftime('%Y', time.localtime(createdat))
+    extra_dates['utc'] = time.strftime('%d/%m/%Y', time.localtime(int_ca))
+    month = time.strftime('%m', time.localtime(int_ca))
+    year = time.strftime('%Y', time.localtime(int_ca))
     
-    if month >= 7:
-        extra_dates['fy'] = year
-    elif month < 7:
-        extra_dates['fy'] = year - 1
+    if int(month) >= 7:
+        extra_dates['fy'] = int(year)
+    elif int(month) < 7:
+        extra_dates['fy'] = int(year) - 1
         
     return extra_dates
 
@@ -37,7 +44,6 @@ def get_order():
     for a in ass_val:
         print(a)
     
-
 
 def ledger_entry(id, order_id, date, acc_type, bizType, symbol, asset, direction, size, fee):
     insert_stmt = insert(Ledger).values(
@@ -85,511 +91,17 @@ def ledger_entry(id, order_id, date, acc_type, bizType, symbol, asset, direction
     '''
 
 
-
 def commit_entries():
     db.session.commit()
 
 
-def ledger_test2():
-    assets = list(cute(db.select(db.distinct(LedgerSecondSum.asset))).scalars())
-    base_assets = list(cute(db.select(db.distinct(LedgerSecondSum.base_asset))).scalars())
-    combined_assets = []
-    sizes = {}
-    
-    for a in assets:
-        combined_assets.append(a)
-        
-    for b in base_assets:
-        if b not in combined_assets:
-            combined_assets.append(b)
-    
-    for c in combined_assets:
-        sizes.update({c:0})
-        
-    for ab in assets:
-        ass_size = cute(db.select(db.func.sum(LedgerSecondSum.asset_size)).group_by(LedgerSecondSum.asset).filter(LedgerSecondSum.asset == ab)).scalars().first()
-        sizes[ab] += ass_size
-    
-    for bb in base_assets:
-        if bb != None:
-            bass_size = cute(db.select(db.func.sum(LedgerSecondSum.base_asset_size)).group_by(LedgerSecondSum.base_asset).filter(LedgerSecondSum.base_asset == bb)).scalars().first()
-            sizes[bb] += bass_size
-    
-    for i in sizes.keys():
-        if sizes[i] > 0.1 or sizes[i] < -0.1:
-            print(f'{i} {round(sizes[i],3)}')
-
-
-def transfers():   
-    ass_size = cute(db.select(LedgerSecondSum.asset, db.func.sum(LedgerSecondSum.asset_size)).group_by(LedgerSecondSum.asset)
-        .filter(db.or_(
-            LedgerSecondSum.biz_type == 'Bank Card Deal',
-            LedgerSecondSum.biz_type == 'Deposit',
-            LedgerSecondSum.biz_type == 'Distribution',
-            LedgerSecondSum.biz_type == 'KuCoin Bonus',
-            LedgerSecondSum.biz_type == 'Open red envelope',
-            LedgerSecondSum.biz_type == 'Other rewards',
-            LedgerSecondSum.biz_type == 'Rewards',
-            LedgerSecondSum.biz_type == 'Send red envelope',
-            LedgerSecondSum.biz_type == 'Soft Staking Profits',
-            LedgerSecondSum.biz_type == 'Sub-account transfer',
-            LedgerSecondSum.biz_type == 'Transfer',
-            LedgerSecondSum.biz_type == 'Withdrawal'
-            )))
-    
-    print(ass_size)
-    
-    for i in ass_size:
-        print(i)
-
-
 def ledger_test():
-    #transfers()
-    ass_size = cute(db.select(LedgerSecondSum.asset, db.func.sum(LedgerSecondSum.asset_size)).group_by(LedgerSecondSum.asset))
-    for i in ass_size:
-        print(i)
-    
-    print()
-    
-    bass_size = cute(db.select(LedgerSecondSum.base_asset, db.func.sum(LedgerSecondSum.base_asset_size)).group_by(LedgerSecondSum.base_asset))
-    for v in bass_size:
-        print(v)
-    
-def ledger_test3():
-    ass_size = cute(db.select(LedgerSecondSum.asset, db.func.sum(LedgerSecondSum.asset_size)).group_by(LedgerSecondSum.asset))
-    ass = {}
-    for i in ass_size:
-        ass.update({i.asset: i.sum})
-    
-    b_ass_size = cute(db.select(LedgerSecondSum.base_asset, db.func.sum(LedgerSecondSum.base_asset_size)).group_by(LedgerSecondSum.base_asset))
-    for b in b_ass_size:
-        try:
-            ass[b.base_asset] += b.sum
-        except:
-            ass.update({b.base_asset: b.sum})
-
-    kcs_fee_size = cute(db.select(db.func.sum(LedgerSecondSum.fee_kcs))).scalars().first()
-    ass['KCS'] += kcs_fee_size
-    
-    for v in ass:
-        if ass[v] > 0.1 or ass[v] < -0.1:
-            print(f'{v}  {ass[v]}')
-    
-    print()
-    print(f'KCS fee size {kcs_fee_size}')
-
-    '''
-    for i in sizes.keys():
-        if sizes[i] > 0.1 or sizes[i] < -0.1:
-            print(f'{i} {round(sizes[i],3)}')
-    '''
-
-def count(order_id, clmn):
-    # complicated query that counts the number of each bizType in an order, and returns the most used one
-    # need this value when collating the orders so that entries such as 'Refunded Fee' don't determine the biztype
-    # when it should be 'Exchange' etc.
-    #print(clmn)
-    #print(order_id)
-    def s(c):
-        #stmnt = cute(db.select(c, db.func.count(c)).group_by(c)
-        #     .filter(Ledger.order_id == order_id)).scalars().all()
-        stmnt = cute(db.select(c, db.func.count(c)).group_by(c)
-             .filter(Ledger.order_id == order_id).order_by(db.func.count(c).desc())).scalars().first()
-
-        return stmnt
-
-    match clmn:
-        case 'bizType':
-            return s(Ledger.biz_type)
-        case 'acc_type':
-            return s(Ledger.acc_type)
-        case 'symbol':
-            return s(Ledger.symbol)
-
-
-def order_collate(oid):
-    assets = list(cute(db.select(db.distinct(Ledger.asset)).filter(Ledger.order_id == oid)).scalars())
-    bizType = cute(db.select(db.distinct(Ledger.biz_type)).filter(Ledger.order_id == oid)).scalars()
-    
-    fee_size = cute(db.select(Ledger.asset, db.func.sum(Ledger.fee)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid).order_by(db.func.sum(Ledger.fee).desc())).first()
-
-    sizes = {}
-    fees = {}
-    
-    
-    
-    for ast in assets:
-        sizes.update({ast: 0})
-        fees.update({ast: 0})
-
-    # subtract the fee
-    sizes[fee_size[0]] -= fee_size[1]
-    fees[fee_size[0]] -= fee_size[1]
-    
-    # get static information
-    real_b_type = count(oid, 'bizType')
-    real_acc_type = count(oid, 'acc_type')
-    symbol = count(oid, 'symbol')
-    
-    # assign default values used in an entry to the DB
-    ls_order_id = oid
-    ls_date = cute(db.select(Ledger.date).filter(Ledger.order_id == oid)).scalars().first()
-    ls_biz_type = real_b_type
-    ls_acc_type = real_acc_type
-    ls_symbol = symbol
-    ls_asset_size = 0
-    ls_fee = 0 # not assigned fee value incase value needs to be updated with refunded amount
-    ls_fee_kcs = 0
-    ls_direction = ''
-    ls_asset = ''
-    ls_asset_size = 0
-    ls_base_asset = '' # not all orders have a base asset or base asset size
-    ls_base_asset_size = 0
-    ls_fee_asset = ''
-    ls_fee_kcs = 0
-      
-
-    # Iterates through unique bizTypes and sums up their size by Asset and Direction
-    # ('ENQ', 'out', 22697.192200000005)
-    # ('USDT', 'in', 1960.1792662700002)
-    for i in bizType:
-        ass_size = cute(db.select(Ledger.asset, Ledger.direction, db.func.sum(Ledger.size)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid, Ledger.biz_type == i))
-        for v in ass_size:
-            print(fees[fee_size[0]])
-            ass = v[0]
-            dir = v[1]
-            sz = v[2]
-            if i == 'Refunded Fees':
-                fees[ass] += sz
-                sizes[ass] += sz
-            if i == 'KCS Pay Fees':
-                ls_fee_kcs -= sz
-            
-            if dir == 'in':
-                sizes[ass] += sz
-            elif dir == 'out':
-                sizes[ass] -= sz
-            else:
-                print('oh no')
-
-    
-    for a in assets:
-        if f'{a}-' in symbol:
-            ls_asset=a
-            ls_asset_size = sizes[a]
-            ls_direction = cute(db.select(Ledger.direction).filter(Ledger.order_id == oid, Ledger.symbol == symbol, Ledger.asset == a)).scalar()
-            if fees[a] != 0:
-                ls_fee -= fees[a]
-                ls_fee_asset = a
-        elif f'-{a}' in symbol:
-            ls_base_asset=a
-            ls_base_asset_size=sizes[a]
-            if fees[a] != 0:
-                ls_fee -= fees[a]
-                ls_fee_asset = a
-        else:
-            ls_fee_kcs = sizes[a]
-    
-    insert_stmt = insert(LedgerSecondSum).values(
-        order_id=ls_order_id,
-        date=ls_date,
-        acc_type=ls_acc_type,
-        biz_type=ls_biz_type,
-        symbol=ls_symbol,
-        asset=ls_asset,
-        base_asset = ls_base_asset,
-        direction=ls_direction,
-        asset_size=ls_asset_size,
-        base_asset_size = ls_base_asset_size,
-        fee=ls_fee,
-        fee_asset = ls_fee_asset,
-        fee_kcs = ls_fee_kcs
-    )
-
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-    cute(do_nothing_stmt)
-    #db.session.add(ls)
-    db.session.commit()
-
-
-def order_collate_two(oid):
-    # changed the way fees are deducted
-    assets = list(cute(db.select(db.distinct(Ledger.asset)).filter(Ledger.order_id == oid)).scalars())
-    bizType = cute(db.select(db.distinct(Ledger.biz_type)).filter(Ledger.order_id == oid)).scalars()
-    
-    fee_size = cute(db.select(Ledger.asset, db.func.sum(Ledger.fee)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid).order_by(db.func.sum(Ledger.fee).desc())).first()
-
-    sizes = {}
-    fees = {}
-    
-    
-    
-    for ast in assets:
-        sizes.update({ast: 0})
-        fees.update({ast: 0})
-
-    # subtract the fee
-    sizes[fee_size[0]] -= fee_size[1]
-    fees[fee_size[0]] -= fee_size[1]
-    
-    # get static information
-    real_b_type = count(oid, 'bizType')
-    real_acc_type = count(oid, 'acc_type')
-    symbol = count(oid, 'symbol')
-    
-    # assign default values used in an entry to the DB
-    ls_order_id = oid
-    ls_date = cute(db.select(Ledger.date).filter(Ledger.order_id == oid)).scalars().first()
-    ls_biz_type = real_b_type
-    ls_acc_type = real_acc_type
-    ls_symbol = symbol
-    ls_asset_size = 0
-    ls_fee = 0 # not assigned fee value incase value needs to be updated with refunded amount
-    ls_fee_kcs = 0
-    ls_direction = ''
-    ls_asset = ''
-    ls_asset_size = 0
-    ls_base_asset = '' # not all orders have a base asset or base asset size
-    ls_base_asset_size = 0
-    ls_fee_asset = ''
-    ls_fee_kcs = 0
-      
-
-    # Iterates through unique bizTypes and sums up their size by Asset and Direction
-    # ('ENQ', 'out', 22697.192200000005)
-    # ('USDT', 'in', 1960.1792662700002)
-    for i in bizType:
-        ass_size = cute(db.select(Ledger.asset, Ledger.direction, db.func.sum(Ledger.size)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid, Ledger.biz_type == i))
-        for v in ass_size:
-            print(fees[fee_size[0]])
-            ass = v[0]
-            dir = v[1]
-            sz = v[2]
-            if i == 'Refunded Fees':
-                fees[ass] += sz
-                sizes[ass] += sz
-            if i == 'KCS Pay Fees':
-                ls_fee_kcs -= sz
-            
-            if dir == 'in':
-                sizes[ass] += sz
-            elif dir == 'out':
-                sizes[ass] -= sz
-            else:
-                print('oh no')
-
-    
-    for a in assets:
-        if f'{a}-' in symbol:
-            ls_asset=a
-            ls_asset_size = sizes[a]
-            ls_direction = cute(db.select(Ledger.direction).filter(Ledger.order_id == oid, Ledger.symbol == symbol, Ledger.asset == a)).scalar()
-            if fees[a] != 0:
-                ls_fee -= fees[a]
-                ls_fee_asset = a
-        elif f'-{a}' in symbol:
-            ls_base_asset=a
-            ls_base_asset_size=sizes[a]
-            if fees[a] != 0:
-                ls_fee -= fees[a]
-                ls_fee_asset = a
-        else:
-            ls_fee_kcs = sizes[a]
-    
-    insert_stmt = insert(LedgerSecondSum).values(
-        order_id=ls_order_id,
-        date=ls_date,
-        acc_type=ls_acc_type,
-        biz_type=ls_biz_type,
-        symbol=ls_symbol,
-        asset=ls_asset,
-        base_asset = ls_base_asset,
-        direction=ls_direction,
-        asset_size=ls_asset_size,
-        base_asset_size = ls_base_asset_size,
-        fee=ls_fee,
-        fee_asset = ls_fee_asset,
-        fee_kcs = ls_fee_kcs
-    )
-
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-    cute(do_nothing_stmt)
-    #db.session.add(ls)
-    db.session.commit()
-    
-
-def order_collate_test(oid):
-    #oid = '5f3cd0b3b6401500072ba719' # kcs-usdt
-    #oid = '62aae683501cb3000102d95c' # bank card
-    # oid = '6034a8ebb616180006616a78'
-    # oid = '60eaa6f32575430006ee3f39'
-    # changed the way fees are deducted
-    #assets = list(cute(db.select(db.distinct(Ledger.asset)).filter(Ledger.order_id == oid)).scalars())
-    bizType = list(cute(db.select(db.distinct(Ledger.biz_type)).filter(Ledger.order_id == oid)).scalars())
-    
-    fee_size = cute(db.select(Ledger.asset, db.func.sum(Ledger.fee)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid).order_by(db.func.sum(Ledger.fee).desc())).first()
-
-    fee_asset = fee_size[0]
-    fee_total = fee_size[1]
-    fee_kcs = 0
-    
-    if 'Refunded Fees' in bizType:
-        refunded_fees = cute(db.select(db.func.sum(Ledger.size))
-             .filter(Ledger.order_id == oid, Ledger.biz_type == 'Refunded Fees')).scalars().first()
-        
-        fee_total -= refunded_fees
-        
-    if 'KCS Pay Fees' in bizType:
-        kcs_pay_fees = cute(db.select(db.func.sum(Ledger.size))
-             .filter(Ledger.order_id == oid, Ledger.biz_type == 'KCS Pay Fees')).scalars().first()
-        
-        fee_kcs -= kcs_pay_fees
-    
-  
-    # get static information
-    real_b_type = count(oid, 'bizType')
-    real_acc_type = count(oid, 'acc_type')
-    symbol = count(oid, 'symbol')
-    
-    
-    ass_size = cute(db.select(Ledger.asset, Ledger.direction, db.func.sum(Ledger.size)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid, Ledger.biz_type == real_b_type))
-    
-    asset = ''
-    base_asset = ''
-    direction = ''
-    asset_size = 0
-    base_asset_size = 0
-    
-    for a in ass_size:
-        asset_, direction_, size_ = a
-        ### adds any fee to the asset size where orders are XXXX-USD, probs only Deposit and Withdrawal transactions
-        ### they dont have a fee anyway though 
-        if f'{asset_}-USD' in symbol and f'{asset_}-USDT' not in symbol:
-            #print(f'{asset_}-USD in symbol')
-            asset_size += fee_total
-            base_asset = 'USD'
-
-        if f'{asset_}-' in symbol:
-            #print(f'{asset_}- in symbol')
-            asset = asset_
-            direction = direction_
-            asset_size += size_
-            if direction == 'out':
-                asset_size = 0 - asset_size
-
-        if f'-{asset_}' in symbol and f'{asset_}-' not in symbol:
-            #print(f'-{asset_} in symbol and {asset_}- not in symbol')
-            base_asset = asset_
-            base_asset_size = size_ + fee_total
-            if direction_ == 'out':
-                base_asset_size = 0 - base_asset_size
-                
-        if f'{asset_}-{asset_}' in symbol:
-            #print(f'{asset_}-{asset_} in symbol')
-            base_asset = asset_
-            base_asset_size = 0
-                
-    print(f'{asset} {asset_size}    {base_asset} {base_asset_size}')
-    print()
-
-    date = cute(db.select(Ledger.date).filter(Ledger.order_id == oid)).scalars().first()
-    '''
-    # assign default values used in an entry to the DB
-    ls_order_id = oid
-    ls_date = cute(db.select(Ledger.date).filter(Ledger.order_id == oid)).scalars().first()
-    ls_biz_type = real_b_type
-    ls_acc_type = real_acc_type
-    ls_symbol = symbol
-    ls_asset_size = 0
-    ls_fee = 0 # not assigned fee value incase value needs to be updated with refunded amount
-    ls_fee_kcs = 0
-    ls_direction = ''
-    ls_asset = ''
-    ls_asset_size = 0
-    ls_base_asset = '' # not all orders have a base asset or base asset size
-    ls_base_asset_size = 0
-    ls_fee_asset = fee_asset
-    ls_fee_kcs = 0
-      
-
-    # Iterates through unique bizTypes and sums up their size by Asset and Direction
-    # ('ENQ', 'out', 22697.192200000005)
-    # ('USDT', 'in', 1960.1792662700002)
-    for i in bizType:
-        ass_size = cute(db.select(Ledger.asset, Ledger.direction, db.func.sum(Ledger.size)).group_by(Ledger.asset, Ledger.direction)
-             .filter(Ledger.order_id == oid, Ledger.biz_type == i))
-        for v in ass_size:
-            ass = v[0]
-            dir = v[1]
-            sz = v[2]
-            if i == 'KCS Pay Fees':
-                ls_fee_kcs -= sz
-            
-            if dir == 'in':
-                sizes[ass] += sz
-            elif dir == 'out':
-                sizes[ass] -= sz
-            else:
-                print('oh no')
-
-    
-    for a in assets:
-        if f'{a}-' in symbol:
-            ls_asset=a
-            ls_asset_size = sizes[a]
-            ls_direction = cute(db.select(Ledger.direction).filter(Ledger.order_id == oid, Ledger.symbol == symbol, Ledger.asset == a)).scalar()
-        elif f'-{a}' in symbol:
-            ls_base_asset=a
-            ls_base_asset_size=sizes[a]
-        else:
-            ls_fee_kcs = sizes[a]
-    
-    '''
-    insert_stmt = insert(LedgerSecondSum).values(
-        order_id=oid,
-        date=date,
-        acc_type=real_acc_type,
-        biz_type=real_b_type,
-        symbol=symbol,
-        asset=asset,
-        base_asset = base_asset,
-        direction=direction,
-        asset_size=asset_size,
-        base_asset_size = base_asset_size,
-        fee=fee_total,
-        fee_asset = fee_asset,
-        fee_kcs = fee_kcs
-    )
-
-    do_nothing_stmt = insert_stmt.on_conflict_do_nothing(index_elements=['order_id'])
-    cute(do_nothing_stmt)
-    db.session.commit()
-
-
-
-def second_items():
-    # complete = cute(db.select(Ledger).filter(Ledger.order_id == order_id)).scalars()
-    # clist = LedgerSchema(many=True).dump(complete)
-    #complete = cute(db.select(db.distinct(Ledger.biz_type))).scalars().all()
-    #      sqlalchemy.schema.Column.notlike(other, escape=None)
-    c = cute(db.select(db.distinct(Ledger.order_id)).filter(Ledger.biz_type.notlike('Exchange'))
-                                      .filter(Ledger.biz_type.notlike('Cross Margin'))
-                                      .filter(Ledger.biz_type.notlike('KCS Pay Fees'))
-                                      .filter(Ledger.biz_type.notlike('Rewards'))
-                                      .filter(Ledger.biz_type.notlike('Refunded Fees'))
-                                      .filter(Ledger.biz_type.notlike('Transfer'))
-                                      .filter(Ledger.biz_type.notlike('Deposit'))
-                                      .filter(Ledger.biz_type.notlike('Withdrawal'))
-                                      .filter(Ledger.biz_type.notlike('Isolated Margin'))
-                                      ).scalars()
-    for i in c:
-        order_collate(i)
+    start = 1619411442000
+    end = start + 86400000
+    ledger = client.get_account_ledger(startAt=start,endAt=end,pageSize=100,currency='USDT')
+    print(f"total number : {ledger['totalNum']}")
+    for i in ledger['items']:
+        print(i['balance'])
 
 
 def date_to_integer():
@@ -621,78 +133,71 @@ def date_to_integer():
     db.session.commit()   
     
     
-'''
-order_sum
-    merge fills to single order
-        params
-        - order_id
-
-calls ledger table in database, finds unique asset names, sums up their size, assigns asset as main (mAsset) or base (bAsset)
-    db calls
-        - unique assets (should return 2 values, some may be 1 value for Refund transactions)
-        - uniqe symbol (should return 1 value)
-        - sum function
-
-select asset, sum(asset_size)
-from ledger_second_sum
-where biz_type
-like 
-'Bank Card Deal'
-'Deposit'
-'Distribution'
-'KuCoin Bonus'
-'Open red envelope'
-'Other rewards'
-'Rewards'
-'Send red envelope'
-'Soft Staking Profits'
-'Sub-account transfer'
-'Transfer'
-'Withdrawal'
-'''
-'''
-def order_sum_old(order_id):
-    
-    assets = cute(db.select(db.distinct(Ledger.asset)).filter(Ledger.order_id == order_id)).scalars()
-    symbol=count(order_id, 'symbol')
-    acc_type=count(order_id, 'acc_type')
-    bizType=count(order_id, 'bizType')
-    size = get_size(order_id)
-    
-    l = cute(db.select(Ledger).filter(Ledger.order_id == order_id)).first()
-    ls = LedgerSum()
-    
-    date = l[0].date
-    
-    
-    ls.order_id=order_id
-    ls.acc_type=acc_type
-    ls.date=date
-    ls.bizType=bizType
-    ls.symbol=symbol
-
-    for i in assets.all():
-        # osum = cute(db.select(Ledger.order_id, db.func.sum(Ledger.size)).group_by(Ledger.order_id).filter(Ledger.order_id == order_id).filter(Ledger.asset == i)).first()
-        if f'{i}-' in symbol:
-            ls.asset=i
-            ls.asset_size= size[i]
-            ls.direction = cute(db.select(Ledger.direction).filter(Ledger.order_id == order_id, Ledger.symbol == symbol, Ledger.acc_type == acc_type)).scalar()
-        elif f'-{i}' in symbol:
-            ls.base_asset=i
-            ls.base_asset_size=size[i]
-        else:
-            ls.fee_asset = i
-            ls.fee = size[i]
-
-    print(order_id)
-    return ls
-'''
-
 def unique_orders():
     orders = cute(db.select(db.distinct(Ledger.order_id))).scalars()
-    for i in orders:
-        order_collate_test(i)
 
+
+def balance_at_date(date, date_from):
+    # 1593525600    1625061600  1656597600  1688133600
+    utc = parse_date(date)
+    utcFrom = parse_date(date_from)
+    
+    asset = 'BTC'
+    assets = cute(db.select(db.distinct(LedgerSecond.asset)).filter(db.and_(LedgerSecond.date < date, LedgerSecond.date > date_from))).scalars().all()
+    sizes = []
+    
+    for a in assets:
+        size = cute(db.select(db.func.sum(LedgerSecond.size))
+                .filter(db.and_(LedgerSecond.asset == a, LedgerSecond.date < date))).scalars().first()
+        
+        if a == 'BTC' and size > 0.0001:
+            sizes.append([a, round(size,6)])
+        elif a != 'BTC' and size > 0.01:
+            sizes.append([a, round(size,3)])
+    
+        #fees = cute(db.select(db.func.sum(LedgerSecond.fee))
+        #        .filter(db.and_(LedgerSecond.asset == asset, LedgerSecond.date < date))).scalars().first()
+  
+    return { 
+            "assets": sizes,
+            "utc": utc['utc'],
+            "utcFrom": utcFrom['utc']
+            }
+   
+
+def ledger_running_sizes():
+    asset = 'USDT'
+    orders = cute(db.select(LedgerSecond.date, LedgerSecond.size)
+                  .filter(LedgerSecond.asset == asset).order_by(LedgerSecond.date.asc()))
+    
+    order_no = 1
+    order_vals = {}
+    running_size = 0
+    
+    for i in orders:
+        size = round(i.size, 3)
+        
+        if str(order_no) in order_vals.keys():
+            order_vals[str(order_no)]['size'] += size
+        else:
+            order_vals.update({str(order_no): 
+                { "size": size,
+                  "date": i.date
+                }
+                })
+        
+        running_size += size
+        
+        if running_size >513.5 and running_size < 514.5:
+            print(i.date, "514ish")
+
+        if (running_size >= 0 and running_size <= 0.9) or (running_size <= 0 and running_size >= -0.9):
+            print(f"{i.date} {round(running_size,3)}")   
+            order_no += 1
+    
+    #for v in order_vals.values():
+    #    print(f"{v['date']} {round(v['size'],3)}")
+        
 
 '''
 Need to count number of items per acc_type and bizType,

@@ -98,7 +98,7 @@ class FetchLedger:
     # FY 21 22 1625097600000 1656633600000
     def run_ledger(self, startat,endat):
         for day_start_time in range(startat, endat + 86399999, 86399999):
-            day_end = day_start_time + 86399998
+            day_end = day_start_time + 86399999
             print(f'{self.utc(day_start_time)}  {day_start_time}', '\r') # prints date in UTC instead of UNIX
             page = 1
             total_pages = 2
@@ -158,7 +158,7 @@ class FetchLedger:
     
     def run_futures_ledger(self,startat,endat):
         for day_start_time in range(startat, endat + 8639999, 86399999):
-            day_end = day_start_time + 86399998
+            day_end = day_start_time + 86399999
             page = 1
             has_more = True
             while has_more == True:
